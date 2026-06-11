@@ -21,6 +21,32 @@ setup/fonts/      Fonts installed into ~/.local/share/fonts
 sudo dnf install -y ansible
 ```
 
+## Provision A New System
+
+On a fresh Fedora system, install the prerequisites, clone this repo, and preview the setup:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/PrabhanshuAttri/iwomm/main/provision.sh | bash
+```
+
+Apply the setup instead of previewing it:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/PrabhanshuAttri/iwomm/main/provision.sh | bash -s -- --apply
+```
+
+Pick a playbook from the repo:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/PrabhanshuAttri/iwomm/main/provision.sh | bash -s -- --playbook workstation.yml
+```
+
+The provision script clones the repo into `~/git/iwomm` by default. Override that with:
+
+```bash
+TARGET_DIR=~/git/dotfiles bash provision.sh
+```
+
 ## Preview
 
 Run a dry-run before applying changes:
@@ -94,5 +120,5 @@ Fonts from `setup/fonts/` are copied into:
 For the Ansible setup, commit:
 
 ```bash
-git add README.md ansible.cfg inventory.ini packages.yml workstation.yml setup
+git add README.md provision.sh ansible.cfg inventory.ini packages.yml workstation.yml setup
 ```
