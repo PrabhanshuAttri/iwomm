@@ -16,7 +16,7 @@
     - name: Ensure this is Fedora
       ansible.builtin.assert:
         that:
-          - ansible_distribution == "Fedora"
+          - ansible_facts["distribution"] == "Fedora"
         fail_msg: "This playbook is intended for Fedora."
 
   tasks:
@@ -104,12 +104,39 @@
         mode: "0755"
       when: copy_fonts
 
-    - name: Copy fonts
+    - name: Install fonts
       become: false
-      ansible.builtin.copy:
-        src: setup/fonts/
-        dest: "{{ setup_home }}/.local/share/fonts/"
-        mode: "0644"
+      ansible.builtin.command:
+        chdir: "{{ playbook_dir }}"
+        argv:
+          - find
+          - setup/fonts
+          - -maxdepth
+          - "1"
+          - -type
+          - f
+          - "("
+          - -iname
+          - "*.ttf"
+          - -o
+          - -iname
+          - "*.otf"
+          - -o
+          - -iname
+          - "*.ttc"
+          - -o
+          - -iname
+          - "*.otc"
+          - ")"
+          - -exec
+          - install
+          - -m
+          - "0644"
+          - -t
+          - "{{ setup_home }}/.local/share/fonts"
+          - "{}"
+          - "+"
+      changed_when: false
       when: copy_fonts
 
     - name: Refresh font cache
