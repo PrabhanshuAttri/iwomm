@@ -1,0 +1,168 @@
+---
+- name: Set up Fedora workstation
+  hosts: workstation
+  become: true
+
+  vars_files:
+    - packages.yml
+
+  vars:
+    setup_user: "{{ lookup('env', 'USER') }}"
+    setup_home: "{{ lookup('env', 'HOME') }}"
+    oh_my_zsh_dir: "{{ setup_home }}/.oh-my-zsh"
+    powerlevel10k_dir: "{{ oh_my_zsh_dir }}/custom/themes/powerlevel10k"
+
+  pre_tasks:
+    - name: Ensure this is Fedora
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Fedora"
+        fail_msg: "This playbook is intended for Fedora."
+
+  tasks:
+    - name: Upgrade Fedora packages
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+        update_cache: true
+
+    - name: Install DNF packages
+      ansible.builtin.dnf:
+        name: "{{ dnf_packages }}"
+        state: present
+
+    - name: Install GNOME extensions package
+      ansible.builtin.dnf:
+        name: "{{ gnome_extensions_package }}"
+        state: present
+      when: gnome_extensions_package | length > 0
+
+    - name: Install Flatpak when apps are configured
+      ansible.builtin.dnf:
+        name: flatpak
+        state: present
+      when: flatpak_packages | length > 0
+
+    - name: Add Flathub remote when apps are configured
+      ansible.builtin.command:
+        cmd: flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+      changed_when: false
+      when: flatpak_packages | length > 0
+
+    - name: Install Flatpak apps
+      ansible.builtin.command:
+        cmd: "flatpak install -y flathub {{ item }}"
+      loop: "{{ flatpak_packages }}"
+      changed_when: false
+      when: flatpak_packages | length > 0
+
+    - name: Update Flatpak apps
+      ansible.builtin.command: flatpak update -y
+      changed_when: false
+      failed_when: false
+      when: update_flatpak
+
+    - name: Create Oh My Zsh directory parent
+      become: false
+      ansible.builtin.file:
+        path: "{{ oh_my_zsh_dir | dirname }}"
+        state: directory
+        mode: "0755"
+      when: install_oh_my_zsh
+
+    - name: Install Oh My Zsh
+      become: false
+      ansible.builtin.git:
+        repo: https://github.com/ohmyzsh/ohmyzsh.git
+        dest: "{{ oh_my_zsh_dir }}"
+        depth: 1
+        update: true
+      when: install_oh_my_zsh
+
+    - name: Create Oh My Zsh custom theme directory
+      become: false
+      ansible.builtin.file:
+        path: "{{ oh_my_zsh_dir }}/custom/themes"
+        state: directory
+        mode: "0755"
+      when: install_powerlevel10k
+
+    - name: Install Powerlevel10k
+      become: false
+      ansible.builtin.git:
+        repo: https://github.com/romkatv/powerlevel10k.git
+        dest: "{{ powerlevel10k_dir }}"
+        depth: 1
+        update: true
+      when: install_powerlevel10k
+
+    - name: Create user font directory
+      become: false
+      ansible.builtin.file:
+        path: "{{ setup_home }}/.local/share/fonts"
+        state: directory
+        mode: "0755"
+      when: copy_fonts
+
+    - name: Copy fonts
+      become: false
+      ansible.builtin.copy:
+        src: setup/fonts/
+        dest: "{{ setup_home }}/.local/share/fonts/"
+        mode: "0644"
+      when: copy_fonts
+
+    - name: Refresh font cache
+      become: false
+      ansible.builtin.command: fc-cache -fv
+      changed_when: false
+      when: copy_fonts
+
+    - name: Copy zsh config
+      become: false
+      ansible.builtin.copy:
+        src: setup/configs/zshrc
+        dest: "{{ setup_home }}/.zshrc"
+        backup: true
+        mode: "0644"
+      when: copy_shell_configs
+
+    - name: Copy Powerlevel10k config
+      become: false
+      ansible.builtin.copy:
+        src: setup/configs/p10k.zsh
+        dest: "{{ setup_home }}/.p10k.zsh"
+        backup: true
+        mode: "0644"
+      when: copy_shell_configs
+
+    - name: Copy bash profile
+      become: false
+      ansible.builtin.copy:
+        src: setup/configs/bash_profile
+        dest: "{{ setup_home }}/.bash_profile"
+        backup: true
+        mode: "0644"
+      when: copy_shell_configs
+
+    - name: Set zsh as default shell
+      ansible.builtin.user:
+        name: "{{ setup_user }}"
+        shell: /usr/bin/zsh
+      when: set_zsh_as_default_shell
+
+    - name: Set global Git editor
+      become: false
+      ansible.builtin.command: git config --global core.editor vim
+      changed_when: false
+      when: configure_git
+
+    - name: Autoremove unused DNF packages
+      ansible.builtin.dnf:
+        autoremove: true
+      when: dnf_autoremove
+
+    - name: Clean DNF cache
+      ansible.builtin.command: dnf clean all
+      changed_when: false
+      when: dnf_clean

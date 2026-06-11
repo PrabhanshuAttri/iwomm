@@ -1,0 +1,36 @@
+---
+dnf_packages:
+  - btop
+  - clamav
+  - clamav-update
+  - curl
+  - fastfetch
+  - fd-find
+  - flatpak
+  - fzf
+  - git
+  - htop
+  - gnome-tweaks
+  - python3
+  - python3-pip
+  - python3-virtualenv
+  - ripgrep
+  - rsync
+  - tmux
+  - tree
+  - vim
+  - wget
+  - zsh
+
+gnome_extensions_package: gnome-extensions-app
+flatpak_packages: []
+
+copy_fonts: true
+copy_shell_configs: true
+install_oh_my_zsh: true
+install_powerlevel10k: true
+set_zsh_as_default_shell: false
+configure_git: true
+update_flatpak: true
+dnf_autoremove: true
+dnf_clean: true
