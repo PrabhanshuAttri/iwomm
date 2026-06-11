@@ -27,9 +27,20 @@ flatpak_packages: []
 
 copy_fonts: true
 copy_shell_configs: true
+config_files:
+  - src: zshrc
+    dest: .zshrc
+  - src: p10k.zsh
+    dest: .p10k.zsh
+  - src: bash_profile
+    dest: .bash_profile
+  - src: tmux.conf
+    dest: .tmux.conf
+  - src: vimrc
+    dest: .vimrc
 install_oh_my_zsh: true
 install_powerlevel10k: true
-set_zsh_as_default_shell: false
+set_zsh_as_default_shell: true
 configure_git: true
 update_flatpak: true
 dnf_autoremove: true

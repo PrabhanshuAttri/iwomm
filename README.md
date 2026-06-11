@@ -88,25 +88,32 @@ Useful toggles:
 ```yaml
 copy_fonts: true
 copy_shell_configs: true
+config_files:
+  - src: zshrc
+    dest: .zshrc
+  - src: p10k.zsh
+    dest: .p10k.zsh
 install_oh_my_zsh: true
 install_powerlevel10k: true
-set_zsh_as_default_shell: false
+set_zsh_as_default_shell: true
 configure_git: true
 update_flatpak: true
 dnf_autoremove: true
 dnf_clean: true
 ```
 
-Keep `set_zsh_as_default_shell` as `false` unless you want Ansible to change your login shell.
+Set `set_zsh_as_default_shell` to `false` if you do not want Ansible to change your login shell.
 
 ## Local Assets
 
-Shell configs are copied with backups:
+Config files are copied with backups. The list is controlled by `config_files` in `packages.yml`:
 
 ```text
 setup/configs/zshrc       -> ~/.zshrc
 setup/configs/p10k.zsh    -> ~/.p10k.zsh
 setup/configs/bash_profile -> ~/.bash_profile
+setup/configs/tmux.conf   -> ~/.tmux.conf
+setup/configs/vimrc       -> ~/.vimrc
 ```
 
 Fonts from `setup/fonts/` are copied into:
