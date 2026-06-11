@@ -11,6 +11,7 @@
     setup_home: "{{ lookup('env', 'HOME') }}"
     oh_my_zsh_dir: "{{ setup_home }}/.oh-my-zsh"
     powerlevel10k_dir: "{{ oh_my_zsh_dir }}/custom/themes/powerlevel10k"
+    dnf_install_packages: "{{ dnf_packages + ([gnome_extensions_package] if gnome_extensions_package | length > 0 else []) }}"
 
   pre_tasks:
     - name: Ensure this is Fedora
@@ -21,26 +22,26 @@
 
   tasks:
     - name: Upgrade Fedora packages
-      ansible.builtin.dnf:
-        name: "*"
-        state: latest
-        update_cache: true
+      ansible.builtin.command:
+        argv:
+          - dnf
+          - -y
+          - "--setopt=*.skip_if_unavailable=True"
+          - upgrade
+          - --refresh
 
     - name: Install DNF packages
-      ansible.builtin.dnf:
-        name: "{{ dnf_packages }}"
-        state: present
-
-    - name: Install GNOME extensions package
-      ansible.builtin.dnf:
-        name: "{{ gnome_extensions_package }}"
-        state: present
-      when: gnome_extensions_package | length > 0
+      ansible.builtin.command:
+        argv: "{{ ['dnf', '-y', '--setopt=*.skip_if_unavailable=True', 'install'] + dnf_install_packages }}"
 
     - name: Install Flatpak when apps are configured
-      ansible.builtin.dnf:
-        name: flatpak
-        state: present
+      ansible.builtin.command:
+        argv:
+          - dnf
+          - -y
+          - "--setopt=*.skip_if_unavailable=True"
+          - install
+          - flatpak
       when: flatpak_packages | length > 0
 
     - name: Add Flathub remote when apps are configured
@@ -147,12 +148,35 @@
 
     - name: Copy config files
       become: false
-      ansible.builtin.copy:
-        src: "setup/configs/{{ item.src }}"
-        dest: "{{ setup_home }}/{{ item.dest }}"
-        backup: true
-        mode: "0644"
+      ansible.builtin.shell:
+        chdir: "{{ playbook_dir }}"
+        cmd: |
+          set -euo pipefail
+          src="setup/configs/{{ item.src }}"
+          dest="{{ setup_home }}/{{ item.dest }}"
+
+          if [ ! -f "$src" ]; then
+            echo "missing source: $src" >&2
+            exit 1
+          fi
+
+          mkdir -p "$(dirname "$dest")"
+
+          if [ -e "$dest" ] && cmp -s "$src" "$dest"; then
+            echo "unchanged"
+            exit 0
+          fi
+
+          if [ -e "$dest" ]; then
+            cp -p "$dest" "$dest.ansible-backup-$(date +%Y%m%d%H%M%S)"
+          fi
+
+          install -m 0644 "$src" "$dest"
+          echo "installed"
+        executable: /bin/bash
       loop: "{{ config_files }}"
+      changed_when: "'installed' in config_install.stdout"
+      register: config_install
       when: copy_shell_configs
 
     - name: Set zsh as default shell
