@@ -3,14 +3,17 @@ dnf_packages:
   - btop
   - clamav
   - clamav-update
+  - cowsay
   - curl
   - fastfetch
   - fd-find
   - flatpak
+  - fortune-mod
   - fzf
   - git
-  - htop
   - gnome-tweaks
+  - htop
+  - lolcat
   - python3
   - python3-pip
   - python3-virtualenv
