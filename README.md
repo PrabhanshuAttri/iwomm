@@ -100,6 +100,7 @@ configure_git: true
 update_flatpak: true
 dnf_autoremove: true
 dnf_clean: true
+zsh_startup_command: fortune | cowsay -f tux | lolcat -f
 ```
 
 Set `set_zsh_as_default_shell` to `false` if you do not want Ansible to change your login shell.

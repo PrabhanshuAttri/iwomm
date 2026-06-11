@@ -200,3 +200,24 @@
       ansible.builtin.command: dnf clean all
       changed_when: false
       when: dnf_clean
+
+    - name: Add zsh startup command
+      become: false
+      ansible.builtin.shell:
+        cmd: |
+          set -euo pipefail
+          zshrc="{{ setup_home }}/.zshrc"
+          line="{{ zsh_startup_command }}"
+
+          touch "$zshrc"
+          if grep -Fxq "$line" "$zshrc"; then
+            echo "unchanged"
+            exit 0
+          fi
+
+          printf '\n%s\n' "$line" >> "$zshrc"
+          echo "installed"
+        executable: /bin/bash
+      changed_when: "'installed' in zsh_startup_command_result.stdout"
+      register: zsh_startup_command_result
+      when: zsh_startup_command | length > 0

@@ -48,3 +48,4 @@ configure_git: true
 update_flatpak: true
 dnf_autoremove: true
 dnf_clean: true
+zsh_startup_command: fortune | cowsay -f tux | lolcat -f
