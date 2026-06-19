@@ -1,31 +1,37 @@
 ---
-dnf_packages:
-  - btop
-  - clamav
-  - clamav-update
-  - cowsay
-  - curl
-  - fastfetch
-  - fd-find
-  - flatpak
-  - fortune-mod
-  - fzf
-  - git
-  - gnome-tweaks
-  - htop
-  - lolcat
-  - python3
-  - python3-pip
-  - python3-virtualenv
-  - ripgrep
-  - rsync
-  - tmux
-  - tree
-  - vim
-  - wget
-  - zsh
+packages:
+  common:
+    - btop
+    - clamav
+    - cowsay
+    - curl
+    - fastfetch
+    - fd-find
+    - flatpak
+    - fortune-mod
+    - fzf
+    - git
+    - gnome-tweaks
+    - htop
+    - lolcat
+    - python3
+    - python3-pip
+    - python3-virtualenv
+    - ripgrep
+    - rsync
+    - tmux
+    - tree
+    - vim
+    - wget
+    - zsh
+  fedora:
+    - clamav-update
+    - gnome-extensions-app
+  ubuntu:
+    - clamav-freshclam
+    - gnome-shell-extension-manager
+    - python3-venv
 
-gnome_extensions_package: gnome-extensions-app
 flatpak_packages: []
 
 copy_fonts: true
@@ -46,6 +52,6 @@ install_powerlevel10k: true
 set_zsh_as_default_shell: true
 configure_git: true
 update_flatpak: true
-dnf_autoremove: true
-dnf_clean: true
+package_autoremove: true
+package_clean: true
 zsh_startup_command: fortune | cowsay -f tux | lolcat -f

@@ -11,7 +11,7 @@
     setup_home: "{{ lookup('env', 'HOME') }}"
     oh_my_zsh_dir: "{{ setup_home }}/.oh-my-zsh"
     powerlevel10k_dir: "{{ oh_my_zsh_dir }}/custom/themes/powerlevel10k"
-    dnf_install_packages: "{{ dnf_packages + ([gnome_extensions_package] if gnome_extensions_package | length > 0 else []) }}"
+    dnf_install_packages: "{{ packages.common + packages.fedora }}"
 
   pre_tasks:
     - name: Ensure this is Fedora
@@ -194,12 +194,12 @@
     - name: Autoremove unused DNF packages
       ansible.builtin.dnf:
         autoremove: true
-      when: dnf_autoremove
+      when: package_autoremove
 
     - name: Clean DNF cache
       ansible.builtin.command: dnf clean all
       changed_when: false
-      when: dnf_clean
+      when: package_clean
 
     - name: Add zsh startup command
       become: false

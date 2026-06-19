@@ -1,0 +1,219 @@
+---
+- name: Set up Ubuntu workstation
+  hosts: workstation
+  become: true
+
+  vars_files:
+    - packages.yml
+
+  vars:
+    setup_user: "{{ lookup('env', 'USER') }}"
+    setup_home: "{{ lookup('env', 'HOME') }}"
+    oh_my_zsh_dir: "{{ setup_home }}/.oh-my-zsh"
+    powerlevel10k_dir: "{{ oh_my_zsh_dir }}/custom/themes/powerlevel10k"
+    apt_install_packages: "{{ packages.common + packages.ubuntu }}"
+
+  pre_tasks:
+    - name: Ensure this is Ubuntu
+      ansible.builtin.assert:
+        that:
+          - ansible_facts["distribution"] == "Ubuntu"
+        fail_msg: "This playbook is intended for Ubuntu."
+
+  tasks:
+    - name: Upgrade Ubuntu packages
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+        autoremove: false
+
+    - name: Install APT packages
+      ansible.builtin.apt:
+        name: "{{ apt_install_packages }}"
+        state: present
+        update_cache: true
+
+    - name: Install Flatpak when apps are configured
+      ansible.builtin.apt:
+        name: flatpak
+        state: present
+        update_cache: true
+      when: flatpak_packages | length > 0
+
+    - name: Add Flathub remote when apps are configured
+      ansible.builtin.command:
+        cmd: flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+      changed_when: false
+      when: flatpak_packages | length > 0
+
+    - name: Install Flatpak apps
+      ansible.builtin.command:
+        cmd: "flatpak install -y flathub {{ item }}"
+      loop: "{{ flatpak_packages }}"
+      changed_when: false
+      when: flatpak_packages | length > 0
+
+    - name: Update Flatpak apps
+      ansible.builtin.command: flatpak update -y
+      changed_when: false
+      failed_when: false
+      when: update_flatpak
+
+    - name: Create Oh My Zsh directory parent
+      become: false
+      ansible.builtin.file:
+        path: "{{ oh_my_zsh_dir | dirname }}"
+        state: directory
+        mode: "0755"
+      when: install_oh_my_zsh
+
+    - name: Install Oh My Zsh
+      become: false
+      ansible.builtin.git:
+        repo: https://github.com/ohmyzsh/ohmyzsh.git
+        dest: "{{ oh_my_zsh_dir }}"
+        depth: 1
+        update: true
+      when: install_oh_my_zsh
+
+    - name: Create Oh My Zsh custom theme directory
+      become: false
+      ansible.builtin.file:
+        path: "{{ oh_my_zsh_dir }}/custom/themes"
+        state: directory
+        mode: "0755"
+      when: install_powerlevel10k
+
+    - name: Install Powerlevel10k
+      become: false
+      ansible.builtin.git:
+        repo: https://github.com/romkatv/powerlevel10k.git
+        dest: "{{ powerlevel10k_dir }}"
+        depth: 1
+        update: true
+      when: install_powerlevel10k
+
+    - name: Create user font directory
+      become: false
+      ansible.builtin.file:
+        path: "{{ setup_home }}/.local/share/fonts"
+        state: directory
+        mode: "0755"
+      when: copy_fonts
+
+    - name: Install fonts
+      become: false
+      ansible.builtin.command:
+        chdir: "{{ playbook_dir }}"
+        argv:
+          - find
+          - setup/fonts
+          - -maxdepth
+          - "1"
+          - -type
+          - f
+          - "("
+          - -iname
+          - "*.ttf"
+          - -o
+          - -iname
+          - "*.otf"
+          - -o
+          - -iname
+          - "*.ttc"
+          - -o
+          - -iname
+          - "*.otc"
+          - ")"
+          - -exec
+          - install
+          - -m
+          - "0644"
+          - -t
+          - "{{ setup_home }}/.local/share/fonts"
+          - "{}"
+          - "+"
+      changed_when: false
+      when: copy_fonts
+
+    - name: Refresh font cache
+      become: false
+      ansible.builtin.command: fc-cache -fv
+      changed_when: false
+      when: copy_fonts
+
+    - name: Copy config files
+      become: false
+      ansible.builtin.shell:
+        chdir: "{{ playbook_dir }}"
+        cmd: |
+          set -euo pipefail
+          src="setup/configs/{{ item.src }}"
+          dest="{{ setup_home }}/{{ item.dest }}"
+
+          if [ ! -f "$src" ]; then
+            echo "missing source: $src" >&2
+            exit 1
+          fi
+
+          mkdir -p "$(dirname "$dest")"
+
+          if [ -e "$dest" ] && cmp -s "$src" "$dest"; then
+            echo "unchanged"
+            exit 0
+          fi
+
+          if [ -e "$dest" ]; then
+            cp -p "$dest" "$dest.ansible-backup-$(date +%Y%m%d%H%M%S)"
+          fi
+
+          install -m 0644 "$src" "$dest"
+          echo "installed"
+        executable: /bin/bash
+      loop: "{{ config_files }}"
+      changed_when: "'installed' in config_install.stdout"
+      register: config_install
+      when: copy_shell_configs
+
+    - name: Set zsh as default shell
+      ansible.builtin.user:
+        name: "{{ setup_user }}"
+        shell: /usr/bin/zsh
+      when: set_zsh_as_default_shell
+
+    - name: Set global Git editor
+      become: false
+      ansible.builtin.command: git config --global core.editor vim
+      changed_when: false
+      when: configure_git
+
+    - name: Autoremove unused APT packages
+      ansible.builtin.apt:
+        autoremove: true
+      when: package_autoremove
+
+    - name: Clean APT cache
+      ansible.builtin.apt:
+        autoclean: true
+      when: package_clean
+
+    - name: Add zsh startup command
+      become: false
+      ansible.builtin.shell:
+        cmd: |
+          set -euo pipefail
+          zshrc="{{ setup_home }}/.zshrc"
+          line="{{ zsh_startup_command }}"
+
+          touch "$zshrc"
+          if grep -Fxq "$line" "$zshrc"; then
+            echo "unchanged"
+            exit 0
+          fi
+
+          printf '\n%s\n' "$line" >> "$zshrc"
+          echo "installed"
+        executable: /bin/bash
+      changed_when: "'installed' in zsh_startup_command_result.stdout"
+      register: zsh_startup_command_result
+      when: zsh_startup_command | length > 0

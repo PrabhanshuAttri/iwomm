@@ -1,29 +1,47 @@
-# Fedora Workstation Setup
+# Pipboy Workstation Setup
 
-Ansible setup for a single Fedora workstation.
+Ansible setup for a single Fedora or Ubuntu workstation.
 
-The main playbook is `workstation.yml`. It installs base packages, updates the system, configures zsh with Oh My Zsh and Powerlevel10k, copies local dotfiles and fonts, updates Flatpak apps, and runs basic DNF cleanup.
+The playbooks install base packages, update the system, configure zsh with Oh My Zsh and Powerlevel10k, copy local dotfiles and fonts, update Flatpak apps, and run basic package cleanup.
+
+## Playbooks
+
+```text
+fedora-pipboy-workstation.yml    Fedora workstation setup
+ubuntu-pipboy-workstation.yml    Ubuntu workstation setup
+```
+
+Both playbooks use the shared settings in `packages.yml`.
 
 ## Files
 
 ```text
 ansible.cfg       Ansible defaults for this repo
 inventory.ini     Local workstation inventory
-packages.yml      Package lists and setup toggles
-workstation.yml   Main Fedora workstation playbook
+packages.yml      Shared package groups and setup toggles
+provision.sh      Bootstrap helper for fresh systems
 setup/configs/    Shell config files copied into the user home
 setup/fonts/      Fonts installed into ~/.local/share/fonts
 ```
 
 ## Install Ansible
 
+Fedora:
+
 ```bash
 sudo dnf install -y ansible
 ```
 
+Ubuntu:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y ansible
+```
+
 ## Provision A New System
 
-On a fresh Fedora system, install the prerequisites, clone this repo, and preview the setup:
+On a fresh Fedora or Ubuntu system, this installs prerequisites, clones the repo, and previews the detected playbook:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/PrabhanshuAttri/iwomm/main/provision.sh | bash
@@ -35,10 +53,10 @@ Apply the setup instead of previewing it:
 curl -fsSL https://raw.githubusercontent.com/PrabhanshuAttri/iwomm/main/provision.sh | bash -s -- --apply
 ```
 
-Pick a playbook from the repo:
+`provision.sh` auto-selects `fedora-pipboy-workstation.yml` on Fedora and `ubuntu-pipboy-workstation.yml` on Ubuntu. Pick a playbook manually with:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/PrabhanshuAttri/iwomm/main/provision.sh | bash -s -- --playbook workstation.yml
+curl -fsSL https://raw.githubusercontent.com/PrabhanshuAttri/iwomm/main/provision.sh | bash -s -- --playbook fedora-pipboy-workstation.yml
 ```
 
 The provision script clones the repo into `~/git/iwomm` by default. Override that with:
@@ -49,31 +67,52 @@ TARGET_DIR=~/git/dotfiles bash provision.sh
 
 ## Preview
 
-Run a dry-run before applying changes:
+Run a dry-run before applying changes.
+
+Fedora:
 
 ```bash
-ansible-playbook workstation.yml --check --diff --ask-become-pass
+ansible-playbook fedora-pipboy-workstation.yml --check --diff --ask-become-pass
 ```
 
-`--ask-become-pass` asks for your sudo password so Ansible can run system tasks like `dnf install`.
+Ubuntu:
+
+```bash
+ansible-playbook ubuntu-pipboy-workstation.yml --check --diff --ask-become-pass
+```
+
+`--ask-become-pass` asks for your sudo password so Ansible can run system package tasks.
 
 ## Apply
 
+Fedora:
+
 ```bash
-ansible-playbook workstation.yml --ask-become-pass
+ansible-playbook fedora-pipboy-workstation.yml --ask-become-pass
+```
+
+Ubuntu:
+
+```bash
+ansible-playbook ubuntu-pipboy-workstation.yml --ask-become-pass
 ```
 
 ## Customize
 
 Edit `packages.yml`.
 
-Use `dnf_packages` for Fedora packages:
+Use `packages.common` for package names shared by both systems. Put distro-specific package names under `packages.fedora` or `packages.ubuntu`:
 
 ```yaml
-dnf_packages:
-  - git
-  - vim
-  - tmux
+packages:
+  common:
+    - git
+    - vim
+    - tmux
+  fedora:
+    - clamav-update
+  ubuntu:
+    - clamav-freshclam
 ```
 
 Use `flatpak_packages` for Flathub app IDs:
@@ -98,8 +137,8 @@ install_powerlevel10k: true
 set_zsh_as_default_shell: true
 configure_git: true
 update_flatpak: true
-dnf_autoremove: true
-dnf_clean: true
+package_autoremove: true
+package_clean: true
 zsh_startup_command: fortune | cowsay -f tux | lolcat -f
 ```
 
@@ -128,5 +167,5 @@ Fonts from `setup/fonts/` are copied into:
 For the Ansible setup, commit:
 
 ```bash
-git add README.md provision.sh ansible.cfg inventory.ini packages.yml workstation.yml setup
+git add README.md provision.sh ansible.cfg inventory.ini packages.yml fedora-pipboy-workstation.yml ubuntu-pipboy-workstation.yml setup
 ```

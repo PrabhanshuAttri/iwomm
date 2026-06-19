@@ -3,7 +3,7 @@ set -euo pipefail
 
 REPO_URL="${REPO_URL:-https://github.com/PrabhanshuAttri/iwomm.git}"
 TARGET_DIR="${TARGET_DIR:-$HOME/git/iwomm}"
-PLAYBOOK="${PLAYBOOK:-workstation.yml}"
+PLAYBOOK="${PLAYBOOK:-}"
 RUN_MODE="check"
 
 usage() {
@@ -15,7 +15,7 @@ Install git and Ansible, clone this setup repo, and run an Ansible playbook.
 Options:
   --apply             Run the setup for real. Default is a dry-run.
   --check             Run a dry-run with diff output. This is the default.
-  --playbook FILE     Playbook to run from the repo. Default: $PLAYBOOK
+  --playbook FILE     Playbook to run from the repo. Default: auto-detected by OS.
   --repo URL          Git repo URL to clone. Default: $REPO_URL
   --dir PATH          Directory to clone into. Default: $TARGET_DIR
   -h, --help          Show this help.
@@ -62,18 +62,34 @@ while [ "$#" -gt 0 ]; do
 done
 
 if [ ! -f /etc/os-release ]; then
-  echo "Cannot find /etc/os-release. This provision script expects Fedora." >&2
+  echo "Cannot find /etc/os-release. This provision script expects Fedora or Ubuntu." >&2
   exit 1
 fi
 
 . /etc/os-release
-if [ "${ID:-}" != "fedora" ]; then
-  echo "This provision script expects Fedora. Detected: ${PRETTY_NAME:-unknown}" >&2
-  exit 1
-fi
+
+case "${ID:-}" in
+  fedora)
+    DEFAULT_PLAYBOOK="fedora-pipboy-workstation.yml"
+    INSTALL_DEPS=(sudo dnf install -y git ansible)
+    ;;
+  ubuntu)
+    DEFAULT_PLAYBOOK="ubuntu-pipboy-workstation.yml"
+    INSTALL_DEPS=(sudo apt-get install -y git ansible)
+    ;;
+  *)
+    echo "This provision script expects Fedora or Ubuntu. Detected: ${PRETTY_NAME:-unknown}" >&2
+    exit 1
+    ;;
+esac
+
+PLAYBOOK="${PLAYBOOK:-$DEFAULT_PLAYBOOK}"
 
 echo "Installing provision dependencies..."
-sudo dnf install -y git ansible
+if [ "${ID:-}" = "ubuntu" ]; then
+  sudo apt-get update
+fi
+"${INSTALL_DEPS[@]}"
 
 if [ -d "$TARGET_DIR/.git" ]; then
   echo "Updating existing repo: $TARGET_DIR"
