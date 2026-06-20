@@ -109,10 +109,10 @@ fi
 
 if [ "$RUN_MODE" = "apply" ]; then
   echo "Running Ansible playbook: $PLAYBOOK"
-  ansible-playbook "$PLAYBOOK" --ask-become-pass
+  ansible-playbook "$PLAYBOOK"
 else
   echo "Previewing Ansible playbook: $PLAYBOOK"
-  ansible-playbook "$PLAYBOOK" --check --diff --ask-become-pass
+  ansible-playbook "$PLAYBOOK" --check --diff
   echo
   echo "Dry-run complete. To apply changes, run:"
   echo "  $TARGET_DIR/provision.sh --playbook $PLAYBOOK --apply"

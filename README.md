@@ -72,29 +72,31 @@ Run a dry-run before applying changes.
 Fedora:
 
 ```bash
-ansible-playbook fedora-pipboy-workstation.yml --check --diff --ask-become-pass
+ansible-playbook fedora-pipboy-workstation.yml --check --diff
 ```
 
 Ubuntu:
 
 ```bash
-ansible-playbook ubuntu-pipboy-workstation.yml --check --diff --ask-become-pass
+ansible-playbook ubuntu-pipboy-workstation.yml --check --diff
 ```
 
-`--ask-become-pass` asks for your sudo password so Ansible can run system package tasks.
+Ansible asks for your sudo password before starting so system package tasks and
+fact gathering can elevate without timing out. The configured verbosity also
+shows command arguments and their captured standard output and error streams.
 
 ## Apply
 
 Fedora:
 
 ```bash
-ansible-playbook fedora-pipboy-workstation.yml --ask-become-pass
+ansible-playbook fedora-pipboy-workstation.yml
 ```
 
 Ubuntu:
 
 ```bash
-ansible-playbook ubuntu-pipboy-workstation.yml --ask-become-pass
+ansible-playbook ubuntu-pipboy-workstation.yml
 ```
 
 ## Customize
