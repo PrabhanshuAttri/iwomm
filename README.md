@@ -87,6 +87,10 @@ through `curl | bash`, `provision.sh` reads the password from the controlling
 terminal rather than the curl pipe. The configured verbosity also shows command
 arguments and their captured standard output and error streams.
 
+On Ubuntu 26.04, the Ubuntu playbook uses `/usr/bin/sudo.ws` for Ansible
+privilege escalation. This avoids the `sudo-rs` prompt incompatibility without
+changing the system-wide `sudo` alternative.
+
 ## Apply
 
 Fedora:

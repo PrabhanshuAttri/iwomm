@@ -7,6 +7,10 @@
     - packages.yml
 
   vars:
+    # Ubuntu 26.04 defaults to sudo-rs, whose prompt format is not currently
+    # compatible with Ansible's sudo become plugin. Use the classic sudo binary
+    # retained by Ubuntu for compatibility.
+    ansible_become_exe: /usr/bin/sudo.ws
     setup_user: "{{ lookup('env', 'USER') }}"
     setup_home: "{{ lookup('env', 'HOME') }}"
     oh_my_zsh_dir: "{{ setup_home }}/.oh-my-zsh"
