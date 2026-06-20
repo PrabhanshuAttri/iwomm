@@ -42,6 +42,12 @@
         state: started
       when: install_docker
 
+    - name: Ensure the Docker group exists
+      ansible.builtin.group:
+        name: docker
+        state: present
+      when: install_docker
+
     - name: Allow the workstation user to run Docker
       ansible.builtin.user:
         name: "{{ setup_user }}"

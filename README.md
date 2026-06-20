@@ -176,8 +176,8 @@ When `set_vim_as_default_editor` is enabled, login shells use Vim through the
 alternative is also switched from Nano to Vim.
 
 When Docker is installed, its service is enabled and the workstation user is
-added to the `docker` group. Log out and back in before using Docker without
-`sudo`.
+added to the `docker` group. Log out and back in, or run `newgrp docker`, before
+using Docker without `sudo`.
 
 ## Local Assets
 
