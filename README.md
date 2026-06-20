@@ -82,8 +82,10 @@ ansible-playbook ubuntu-pipboy-workstation.yml --check --diff
 ```
 
 Ansible asks for your sudo password before starting so system package tasks and
-fact gathering can elevate without timing out. The configured verbosity also
-shows command arguments and their captured standard output and error streams.
+fact gathering can elevate without timing out. When the bootstrap is invoked
+through `curl | bash`, `provision.sh` reads the password from the controlling
+terminal rather than the curl pipe. The configured verbosity also shows command
+arguments and their captured standard output and error streams.
 
 ## Apply
 
