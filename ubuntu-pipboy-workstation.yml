@@ -15,7 +15,8 @@
     setup_home: "{{ lookup('env', 'HOME') }}"
     oh_my_zsh_dir: "{{ setup_home }}/.oh-my-zsh"
     powerlevel10k_dir: "{{ oh_my_zsh_dir }}/custom/themes/powerlevel10k"
-    apt_install_packages: "{{ packages.common + packages.ubuntu }}"
+    vim_vundle_dir: "{{ setup_home }}/.vim/bundle/Vundle.vim"
+    apt_install_packages: "{{ packages.common + packages.ubuntu + (packages.docker_ubuntu if install_docker else []) }}"
 
   pre_tasks:
     - name: Ensure this is Ubuntu
@@ -37,6 +38,26 @@
         state: present
         update_cache: true
 
+    - name: Enable and start Docker
+      ansible.builtin.service:
+        name: docker
+        enabled: true
+        state: started
+      when: install_docker
+
+    - name: Allow the workstation user to run Docker
+      ansible.builtin.user:
+        name: "{{ setup_user }}"
+        groups: docker
+        append: true
+      when: install_docker
+
+    - name: Allow Syncthing web UI through UFW
+      ansible.builtin.command: ufw allow 8384/tcp
+      register: syncthing_ufw_rule
+      changed_when: "'Rule added' in syncthing_ufw_rule.stdout"
+      notify: Reload UFW
+
     - name: Install Flatpak when apps are configured
       ansible.builtin.apt:
         name: flatpak
@@ -46,7 +67,7 @@
 
     - name: Add Flathub remote when apps are configured
       ansible.builtin.command:
-        cmd: flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+        cmd: flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
       changed_when: false
       when: flatpak_packages | length > 0
 
@@ -179,6 +200,63 @@
       register: config_install
       when: copy_shell_configs
 
+    - name: Create Vim bundle directory
+      become: false
+      ansible.builtin.file:
+        path: "{{ vim_vundle_dir | dirname }}"
+        state: directory
+        mode: "0755"
+      when: install_vim_plugins
+
+    - name: Install Vundle for Vim
+      become: false
+      ansible.builtin.git:
+        repo: https://github.com/VundleVim/Vundle.vim.git
+        dest: "{{ vim_vundle_dir }}"
+        depth: 1
+        update: true
+      when: install_vim_plugins
+
+    - name: Install plugins declared in vimrc
+      become: false
+      ansible.builtin.command:
+        argv:
+          - vim
+          - +PluginInstall
+          - +qall
+      environment:
+        HOME: "{{ setup_home }}"
+      changed_when: false
+      when: install_vim_plugins
+
+    - name: Set Vim as the default CLI editor
+      become: false
+      ansible.builtin.blockinfile:
+        path: "{{ setup_home }}/{{ item }}"
+        marker: "# {mark} ANSIBLE MANAGED DEFAULT EDITOR"
+        block: |
+          export EDITOR=/usr/bin/vim
+          export VISUAL=/usr/bin/vim
+        create: true
+        mode: "0644"
+      loop:
+        - .zshrc
+        - .bash_profile
+      when: set_vim_as_default_editor
+
+    - name: Check the Ubuntu editor alternative
+      ansible.builtin.command: update-alternatives --query editor
+      register: editor_alternative
+      changed_when: false
+      when: set_vim_as_default_editor
+
+    - name: Replace Nano with Vim as the Ubuntu editor alternative
+      ansible.builtin.command: update-alternatives --set editor /usr/bin/vim.basic
+      changed_when: true
+      when:
+        - set_vim_as_default_editor
+        - "'Value: /usr/bin/vim.basic' not in (editor_alternative.stdout | default(''))"
+
     - name: Set zsh as default shell
       ansible.builtin.user:
         name: "{{ setup_user }}"
@@ -221,3 +299,8 @@
       changed_when: "'installed' in zsh_startup_command_result.stdout"
       register: zsh_startup_command_result
       when: zsh_startup_command | length > 0
+
+  handlers:
+    - name: Reload UFW
+      ansible.builtin.command: ufw reload
+      changed_when: true

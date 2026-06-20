@@ -123,6 +123,19 @@ packages:
     - clamav-freshclam
 ```
 
+Docker packages are distro-specific and controlled by `install_docker`:
+
+```yaml
+install_docker: true
+packages:
+  docker_fedora:
+    - docker-compose
+    - moby-engine
+  docker_ubuntu:
+    - docker-compose-v2
+    - docker.io
+```
+
 Use `flatpak_packages` for Flathub app IDs:
 
 ```yaml
@@ -135,6 +148,9 @@ Useful toggles:
 ```yaml
 copy_fonts: true
 copy_shell_configs: true
+install_vim_plugins: true
+set_vim_as_default_editor: true
+install_docker: true
 config_files:
   - src: zshrc
     dest: .zshrc
@@ -151,6 +167,17 @@ zsh_startup_command: fortune | cowsay -f tux | lolcat -f
 ```
 
 Set `set_zsh_as_default_shell` to `false` if you do not want Ansible to change your login shell.
+
+When `install_vim_plugins` is enabled, the playbooks install Vundle and then
+install every plugin declared in the deployed `~/.vimrc`.
+
+When `set_vim_as_default_editor` is enabled, login shells use Vim through the
+`EDITOR` and `VISUAL` environment variables. Ubuntu's system `editor`
+alternative is also switched from Nano to Vim.
+
+When Docker is installed, its service is enabled and the workstation user is
+added to the `docker` group. Log out and back in before using Docker without
+`sudo`.
 
 ## Local Assets
 

@@ -19,6 +19,7 @@ packages:
     - python3-virtualenv
     - ripgrep
     - rsync
+    - syncthing
     - tmux
     - tree
     - vim
@@ -26,16 +27,28 @@ packages:
     - zsh
   fedora:
     - clamav-update
+    - firewalld
     - gnome-extensions-app
   ubuntu:
     - clamav-freshclam
     - gnome-shell-extension-manager
     - python3-venv
+    - ufw
+  docker_fedora:
+    - docker-compose
+    - moby-engine
+  docker_ubuntu:
+    - docker-compose-v2
+    - docker.io
 
-flatpak_packages: []
+flatpak_packages:
+  - md.obsidian.Obsidian
 
 copy_fonts: true
 copy_shell_configs: true
+install_vim_plugins: true
+set_vim_as_default_editor: true
+install_docker: true
 config_files:
   - src: zshrc
     dest: .zshrc
