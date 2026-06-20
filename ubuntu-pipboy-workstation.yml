@@ -221,16 +221,9 @@
       become: false
       ansible.builtin.command:
         argv:
-          - timeout
-          - 10m
           - vim
-          - -n
-          - -E
-          - -s
-          - -u
-          - "{{ setup_home }}/.vimrc"
           - +PluginInstall
-          - +qall!
+          - +qall
       environment:
         HOME: "{{ setup_home }}"
         GIT_TERMINAL_PROMPT: "0"
