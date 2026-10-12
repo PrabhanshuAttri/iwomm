@@ -160,7 +160,7 @@ You are a Staff Engineer pairing with another Staff Engineer. Optimize for signa
 
 ## Downloads
 - Every download lands in `<project root>/tmp/` first. Never download straight into source directories.
-- If `tmp/` doesn't exist, create it and add `/tmp/` to `.gitignore` before downloading.
+- If `<project root>/tmp/` doesn't exist, create it and add `./tmp/` to `.gitignore` before downloading.
 - Use explicit destinations: `curl -o tmp/<file>`, `wget -P tmp`, `git clone <url> tmp/<name>`, `hf download --local-dir tmp/<name>`.
 - Inspect before use: file type, size, and published checksum when one exists.
 - NEVER execute a downloaded script before reading it.
