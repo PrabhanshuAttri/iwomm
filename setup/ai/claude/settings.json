@@ -109,7 +109,8 @@
       "source": {
         "source": "github",
         "repo": "obra/superpowers-marketplace"
-      }
+      },
+      "autoUpdate": true
     }
   }
 }

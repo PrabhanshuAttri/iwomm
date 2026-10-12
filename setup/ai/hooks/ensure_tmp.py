@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """SessionStart hook for Claude Code.
 
-Ensures <project root>/tmp exists and is gitignored, so downloads have a
-scratch area that never gets committed. Prints one line of context for Claude.
+Ensures <project root>/tmp exists and holds a `.gitignore` of `*`, so downloads
+have a scratch area that never gets committed. The ignore rule lives inside
+tmp/ so the root .gitignore is never edited and no path pattern can be misread
+as the system /tmp. Prints one line of context for Claude.
 Never fails the session: errors go to stderr and exit 0.
 """
 from __future__ import annotations
@@ -14,8 +16,8 @@ import sys
 from pathlib import Path
 
 SCRATCH_DIR = "tmp"
-IGNORE_LINE = "/tmp/"
-IGNORE_EQUIVALENTS = {"/tmp/", "tmp/", "/tmp", "tmp"}
+# `*` also matches this .gitignore itself, so nothing under tmp/ is ever tracked.
+IGNORE_ALL = "*\n"
 
 
 def project_root(cwd: str) -> Path:
@@ -32,14 +34,13 @@ def project_root(cwd: str) -> Path:
     return Path(os.path.realpath(cwd))
 
 
-def ensure_gitignored(root: Path) -> bool:
-    gi = root / ".gitignore"
-    existing = gi.read_text() if gi.exists() else ""
-    if any(line.strip() in IGNORE_EQUIVALENTS for line in existing.splitlines()):
+def ensure_gitignored(scratch: Path) -> bool:
+    # Leave an existing tmp/.gitignore alone: the user may have customized it.
+    try:
+        with (scratch / ".gitignore").open("x") as f:
+            f.write(IGNORE_ALL)
+    except FileExistsError:
         return False
-    prefix = "" if not existing or existing.endswith("\n") else "\n"
-    with gi.open("a") as f:
-        f.write(f"{prefix}\n# Scratch area for downloads (Claude Code)\n{IGNORE_LINE}\n")
     return True
 
 
@@ -59,7 +60,8 @@ def main() -> None:
         scratch = root / SCRATCH_DIR
         created = not scratch.exists()
         scratch.mkdir(exist_ok=True)
-        ignored = ensure_gitignored(root) if (root / ".git").exists() else False
+        # Written even outside a git repo, so a later `git init` already ignores tmp/.
+        ignored = ensure_gitignored(scratch)
     except OSError as e:
         print(f"ensure_tmp: {e}", file=sys.stderr)
         return
@@ -68,7 +70,7 @@ def main() -> None:
     if created:
         notes.append("created")
     if ignored:
-        notes.append("added /tmp/ to .gitignore")
+        notes.append("wrote tmp/.gitignore")
     suffix = f" ({', '.join(notes)})" if notes else ""
     print(f"Download scratch dir: {scratch}{suffix}. All downloads go here before entering the project.")
 

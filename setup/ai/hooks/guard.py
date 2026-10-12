@@ -29,10 +29,9 @@ READ_TOOLS = {"Read", "Glob", "Grep", "LS"}
 READABLE_DIRS = (HOME / ".ai", HOME / ".claude")
 # Never readable, nor searchable through a parent directory.
 SECRET_FILES = (HOME / ".claude" / ".credentials.json",)
-GITIGNORE_ADDABLE = {"/tmp/", "tmp/", "/tmp", "tmp"}
 
 PROTECTED_NAMES = {
-    ".gitignore", "CODEOWNERS",
+    "CODEOWNERS",
     "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "bun.lockb",
     "Cargo.lock", "poetry.lock", "uv.lock", "Pipfile.lock", "go.sum",
     "composer.lock", "Gemfile.lock",
@@ -656,32 +655,6 @@ def check_bash(cmd_str: str, cwd: Path, root: Path) -> None:
 
 # --------------------------------------------------------------------------- file tools
 
-def gitignore_change_ok(tool: str, args: dict, path: Path) -> bool:
-    def allowed(line: str) -> bool:
-        s = line.strip()
-        return not s or s.startswith("#") or s in GITIGNORE_ADDABLE
-
-    def only_adds(old: str, new: str) -> bool:
-        if old not in new:
-            return False
-        return all(allowed(l) for l in new.replace(old, "", 1).splitlines())
-
-    if tool == "Edit":
-        return only_adds(args.get("old_string", ""), args.get("new_string", ""))
-    if tool == "MultiEdit":
-        return all(only_adds(e.get("old_string", ""), e.get("new_string", "")) for e in args.get("edits", []))
-    if tool == "Write":
-        old_lines = path.read_text().splitlines() if path.exists() else []
-        j, extras = 0, []
-        for line in args.get("content", "").splitlines():
-            if j < len(old_lines) and line == old_lines[j]:
-                j += 1
-            else:
-                extras.append(line)
-        return j == len(old_lines) and all(allowed(e) for e in extras)
-    return False
-
-
 def glob_prefix(pattern: str) -> str:
     m = re.search(r"[*?\[{]", pattern)
     prefix = pattern[:m.start()] if m else pattern
@@ -701,8 +674,6 @@ def check_file_tool(tool: str, args: dict, cwd: Path, root: Path) -> None:
                 continue
             block(f"{tool} on {p}, outside the project root {root}")
         if tool in WRITE_TOOLS:
-            if p.name == ".gitignore" and p.parent == root and gitignore_change_ok(tool, args, p):
-                continue
             if p.name in PROTECTED_NAMES:
                 block(f"hand-editing {p.name}; regenerate it with the owning tool or ask")
             if re.fullmatch(r"\.env(\..+)?", p.name) and not p.name.endswith((".example", ".sample", ".template")):
