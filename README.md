@@ -218,6 +218,7 @@ AI tool configs are copied the same way, with backups. Everything under
 `setup/ai/` is copied into the home directory. A top-level folder listed in
 `ai_tool_dirs` in `packages.yml` goes to that tool's directory; everything else
 goes to `~/.ai/`. Files under `bin/` or `hooks/` are made executable.
+`__pycache__/`, `*.pyc`, and `test_*.py` are not copied.
 
 ```text
 setup/ai/AGENTS.md               -> ~/.ai/AGENTS.md

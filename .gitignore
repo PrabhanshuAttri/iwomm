@@ -1,0 +1,18 @@
+# Claude Code per-machine settings
+.claude/settings.local.json
+
+# Bytecode from running setup/ai/hooks tests
+__pycache__/
+
+# Secrets
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+
+# Editors used on these workstations (vim, VS Code)
+*.swp
+*.swo
+*~
+.vscode/

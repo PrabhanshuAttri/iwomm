@@ -275,7 +275,9 @@
 
             install -m "$mode" "$src" "$dest"
             echo "installed $dest"
-          done < <(find "$src_root" -type f -print0)
+          # Tests and bytecode are dev-only.
+          done < <(find "$src_root" -name __pycache__ -prune \
+                     -o -type f ! -name '*.pyc' ! -name 'test_*.py' -print0)
         executable: /bin/bash
       changed_when: "'installed' in ai_config_install.stdout"
       register: ai_config_install

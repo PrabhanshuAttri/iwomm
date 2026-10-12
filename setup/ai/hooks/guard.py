@@ -69,13 +69,17 @@ BASH_RULES: list[tuple[str, str]] = [
     (r"\bterraform\s+(apply|destroy)\b|\bpulumi\s+(up|destroy)\b", "infra apply/destroy"),
     (r"(--context|--profile|--project|--subscription)[=\s]+\S*prod", "targeting a prod context"),
     # Secrets and remote hosts
-    (r"(^|[\s<'\"=])\.env(\.[\w-]+)?\b(?!\.example|\.sample|\.template)", "reading .env secrets"),
     (r"\b(printenv|env)\s*($|\|)|\bset\s*\|", "dumping environment"),
     (r"(?i)\b(ssh|sftp|scp|telnet|smb|cifs|nfs|afp|vnc|rdp|rsync)://", "remote shell or file-share URL"),
     (r"docker\.sock", "docker socket access"),
     (r"\b(DOCKER_HOST|CONTAINER_HOST|KUBECONFIG)=", "pointing a tool at another host"),
     (r"['\"]/['\"]", "filesystem root referenced in code"),
 ]
+
+# .env and .env.<anything> hold secrets; committed templates like .env.example do not.
+ENV_TEMPLATE_SUFFIXES = (".example", ".sample", ".template")
+# A .env file name in a shell command, bare or at the end of a path. (?![\w-]) keeps .envrc out.
+ENV_IN_COMMAND = re.compile(r"(?:^|[\s<'\"=/])(\.env(?:\.[\w-]+)*)(?![\w-])")
 
 PRIVATE_NET = re.compile(
     r"(?<![\w.])(10(\.\d{1,3}){3}|192\.168(\.\d{1,3}){2}|172\.(1[6-9]|2\d|3[01])(\.\d{1,3}){2}"
@@ -125,6 +129,7 @@ WRAPPERS = {"env", "nohup", "time", "nice", "command", "exec", "stdbuf", "xargs"
 ASSIGN = re.compile(r"^([A-Za-z_]\w*)=(.*)$", re.DOTALL)
 SPECIAL_CHARS = r"\s'\"`;|&<>(){}\[\],"
 EMBED_ABS = re.compile(rf"(?<![\w.:/~$@%+=\-])(/[^{SPECIAL_CHARS}=]+)")
+EMBED_ABS_TAIL = re.compile(rf"[^{SPECIAL_CHARS}=]*")
 EMBED_HOME = re.compile(rf"(?<![\w/.$-])(~/[^{SPECIAL_CHARS}]*|\$\{{?HOME\}}?[^{SPECIAL_CHARS}]*)")
 EMBED_PARENT = re.compile(rf"(?<![\w./])(\.\.(?:/[^{SPECIAL_CHARS}]*)?)(?=[{SPECIAL_CHARS}]|$)")
 
@@ -143,6 +148,10 @@ def block(reason: str) -> None:
           "Do not retry with an equivalent command, alias, script, or encoding. "
           "Ask the user.", file=sys.stderr)
     sys.exit(2)
+
+
+def is_env_secret(name: str) -> bool:
+    return re.fullmatch(r"\.env(\..+)?", name) is not None and not name.endswith(ENV_TEMPLATE_SUFFIXES)
 
 
 def is_within(path: Path, parent: Path) -> bool:
@@ -208,6 +217,29 @@ def check_path(raw: str, base: Path, root: Path, ctx: str, allow_exec: bool = Fa
     if not is_within(p, root):
         block(f"{ctx} touches {p}, outside the project root {root}")
     return p
+
+
+def embedded_abs_paths(cmd_str: str, root: Path) -> list[str]:
+    """Absolute paths appearing anywhere in cmd_str, including inside code strings.
+
+    EMBED_ABS stops at whitespace, which would cut a root like "/mnt/New Volume/repo"
+    at the space and misread the stub as outside. A match that starts with the root
+    (raw or backslash-escaped) takes the root whole, then resumes the normal match.
+    """
+    root_forms = (str(root), str(root).replace(" ", "\\ "))
+    paths: list[str] = []
+    pos = 0
+    while m := EMBED_ABS.search(cmd_str, pos):
+        start = m.start(1)
+        form = next((f for f in root_forms if cmd_str.startswith(f, start)), None)
+        if form is None:
+            paths.append(m.group(1))
+            pos = m.end()
+            continue
+        tail = EMBED_ABS_TAIL.match(cmd_str, start + len(form))
+        paths.append(str(root) + tail.group(0))
+        pos = tail.end()
+    return paths
 
 
 def tokenize(cmd: str) -> list[str]:
@@ -559,12 +591,14 @@ def check_bash(cmd_str: str, cwd: Path, root: Path) -> None:
     for pattern, reason in BASH_RULES:
         if re.search(pattern, cmd_str, re.IGNORECASE):
             block(reason)
+    if any(is_env_secret(m.group(1)) for m in ENV_IN_COMMAND.finditer(cmd_str)):
+        block("reading .env secrets")
     m = PRIVATE_NET.search(cmd_str)
     if m:
         block(f"private network address or LAN hostname ({m.group(0)}); local devices are off limits")
 
-    for m in EMBED_ABS.finditer(cmd_str):
-        check_path(m.group(1), cwd, root, "command", allow_exec=True)
+    for raw in embedded_abs_paths(cmd_str, root):
+        check_path(raw, cwd, root, "command", allow_exec=True)
     for m in EMBED_HOME.finditer(cmd_str):
         check_path(m.group(1), cwd, root, "command")
     for m in EMBED_PARENT.finditer(cmd_str):
@@ -676,13 +710,12 @@ def check_file_tool(tool: str, args: dict, cwd: Path, root: Path) -> None:
         if tool in WRITE_TOOLS:
             if p.name in PROTECTED_NAMES:
                 block(f"hand-editing {p.name}; regenerate it with the owning tool or ask")
-            if re.fullmatch(r"\.env(\..+)?", p.name) and not p.name.endswith((".example", ".sample", ".template")):
+            if is_env_secret(p.name):
                 block("writing a .env file")
-            if ".github/workflows" in p.as_posix() or ".gitlab-ci" in p.name:
+            if ".gitlab-ci" in p.name:
                 block("editing CI config; confirm with the user first")
     if tool == "Read":
-        name = resolve(args.get("file_path", ""), cwd).name
-        if re.fullmatch(r"\.env(\..+)?", name) and not name.endswith((".example", ".sample", ".template")):
+        if is_env_secret(resolve(args.get("file_path", ""), cwd).name):
             block("reading .env secrets; ask for the specific value")
 
 

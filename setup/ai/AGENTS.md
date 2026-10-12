@@ -175,7 +175,7 @@ You are a Staff Engineer pairing with another Staff Engineer. Optimize for signa
 ## Files Inside the Project
 - NEVER hand-edit lockfiles or generated code. Regenerate with the owning tool.
 - NEVER edit `CODEOWNERS`, branch protection, or CI secrets.
-- NEVER read `.env` files or credential stores. Ask for the specific value needed.
+- NEVER read or write `.env` or `.env.*` files (`.env.prod`, `.env.dev`, `.env.local`) or credential stores. Ask for the specific value needed. Templates ending in `.example`, `.sample`, or `.template` hold no secrets and may be read and edited.
 
 ## Supply Chain
 - NEVER pipe downloaded content into a shell or interpreter (`curl | sh`, `wget | python`).

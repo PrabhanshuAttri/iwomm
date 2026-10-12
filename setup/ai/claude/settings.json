@@ -43,9 +43,7 @@
       "Bash(mkfs:*)",
       "Bash(dd:*)",
       "Read(./.env)",
-      "Read(./.env.*)",
       "Read(**/.env)",
-      "Read(**/.env.*)",
       "Read(~/.ssh/**)",
       "Read(~/.aws/**)",
       "Read(~/.config/gcloud/**)",
@@ -53,9 +51,7 @@
       "Read(~/.netrc)",
       "Read(~/.docker/config.json)",
       "Edit(./.env)",
-      "Edit(./.env.*)",
       "Edit(**/.env)",
-      "Edit(**/.env.*)",
       "Edit(~/.ssh/**)",
       "Edit(~/.aws/**)"
     ]
