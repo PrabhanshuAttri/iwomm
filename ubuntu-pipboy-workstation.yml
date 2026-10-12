@@ -52,17 +52,25 @@
           Signed-By: /etc/apt/keyrings/docker.asc
       when: install_docker
 
-    - name: Upgrade Ubuntu packages
+    # Refresh the package lists and upgrade once, before anything is installed.
+    # The install step below reuses these lists and only installs missing packages.
+    - name: Update and upgrade Ubuntu packages
       ansible.builtin.apt:
         update_cache: true
         upgrade: dist
         autoremove: false
 
-    - name: Install APT packages
+    - name: Find APT packages that are not installed
+      ansible.builtin.package_facts:
+        manager: apt
+
+    - name: Install missing APT packages
       ansible.builtin.apt:
-        name: "{{ apt_install_packages }}"
+        name: "{{ apt_missing_packages }}"
         state: present
-        update_cache: true
+      vars:
+        apt_missing_packages: "{{ apt_install_packages | reject('in', ansible_facts.packages) | list }}"
+      when: apt_missing_packages | length > 0
 
     - name: Enable and start Docker
       ansible.builtin.service:
@@ -89,7 +97,9 @@
         name: flatpak
         state: present
         update_cache: true
-      when: flatpak_packages | length > 0
+      when:
+        - flatpak_packages | length > 0
+        - "'flatpak' not in apt_install_packages"
 
     - name: Add Flathub remote when apps are configured
       ansible.builtin.command:
@@ -352,17 +362,30 @@
         update: true
       when: install_vim_plugins
 
+    # Silent Ex mode (-E -s) never waits for "Press ENTER", which full-screen
+    # vim does under Ansible when vimrc errors before plugins exist (e.g. a
+    # missing colorscheme). Errors there make vim exit 1, so only fail on
+    # other codes; 124 means the timeout hit.
     - name: Install plugins declared in vimrc
       become: false
       ansible.builtin.command:
         argv:
+          - timeout
+          - "600"
           - vim
+          - -E
+          - -s
+          - -u
+          - "{{ setup_home }}/.vimrc"
           - +PluginInstall
           - +qall
+        stdin: ""
       environment:
         HOME: "{{ setup_home }}"
         GIT_TERMINAL_PROMPT: "0"
+      register: vim_plugin_install
       changed_when: false
+      failed_when: vim_plugin_install.rc not in [0, 1]
       when: install_vim_plugins
 
     - name: Check the Ubuntu editor alternative

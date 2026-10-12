@@ -2,7 +2,7 @@
 
 Ansible setup for a single Fedora or Ubuntu workstation.
 
-The playbooks install base packages, update the system, configure zsh with Oh My Zsh and Powerlevel10k, copy local dotfiles and fonts, update Flatpak apps, and run basic package cleanup.
+The playbooks update the system once, install missing base packages, configure zsh with Oh My Zsh and Powerlevel10k, copy local dotfiles and fonts, update Flatpak apps, and run basic package cleanup.
 
 ## Playbooks
 
@@ -173,6 +173,13 @@ update_flatpak: true
 package_autoremove: true
 package_clean: true
 ```
+
+Packages are installed only when missing: the playbooks first ask the package
+database (`rpm` on Fedora, Ansible's installed-package facts on Ubuntu) and run
+dnf/apt only for the packages not yet installed, skipping the step when nothing
+is missing. Before that, each run refreshes the package metadata and upgrades
+the system once (`dnf upgrade --refresh` / `apt update` + `apt dist-upgrade`);
+the install step reuses that metadata instead of refreshing again.
 
 Set `set_zsh_as_default_shell` to `false` if you do not want Ansible to change your login shell.
 

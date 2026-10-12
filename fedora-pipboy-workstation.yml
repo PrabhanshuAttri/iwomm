@@ -29,7 +29,9 @@
         mode: "0644"
       when: install_docker
 
-    - name: Upgrade Fedora packages
+    # Refresh metadata and upgrade once, before anything is installed. The
+    # install step below reuses this metadata and only installs missing packages.
+    - name: Update and upgrade Fedora packages
       ansible.builtin.command:
         argv:
           - dnf
@@ -38,9 +40,24 @@
           - upgrade
           - --refresh
 
-    - name: Install DNF packages
+    - name: Find DNF packages that are not installed
       ansible.builtin.command:
-        argv: "{{ ['dnf', '-y', '--setopt=*.skip_if_unavailable=True', 'install'] + dnf_install_packages }}"
+        argv: "{{ ['rpm', '-q', '--whatprovides'] + dnf_install_packages }}"
+      register: dnf_installed_query
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Install missing DNF packages
+      ansible.builtin.command:
+        argv: "{{ ['dnf', '-y', '--setopt=*.skip_if_unavailable=True', 'install'] + dnf_missing_packages }}"
+      vars:
+        dnf_missing_packages: >-
+          {{ dnf_installed_query.stdout_lines
+             | select('match', '^no package provides ')
+             | map('regex_replace', '^no package provides ', '')
+             | list }}
+      when: dnf_missing_packages | length > 0
 
     - name: Enable and start Docker
       ansible.builtin.service:
@@ -88,7 +105,9 @@
           - "--setopt=*.skip_if_unavailable=True"
           - install
           - flatpak
-      when: flatpak_packages | length > 0
+      when:
+        - flatpak_packages | length > 0
+        - "'flatpak' not in dnf_install_packages"
 
     - name: Add Flathub remote when apps are configured
       ansible.builtin.command:
@@ -351,17 +370,30 @@
         update: true
       when: install_vim_plugins
 
+    # Silent Ex mode (-E -s) never waits for "Press ENTER", which full-screen
+    # vim does under Ansible when vimrc errors before plugins exist (e.g. a
+    # missing colorscheme). Errors there make vim exit 1, so only fail on
+    # other codes; 124 means the timeout hit.
     - name: Install plugins declared in vimrc
       become: false
       ansible.builtin.command:
         argv:
+          - timeout
+          - "600"
           - vim
+          - -E
+          - -s
+          - -u
+          - "{{ setup_home }}/.vimrc"
           - +PluginInstall
           - +qall
+        stdin: ""
       environment:
         HOME: "{{ setup_home }}"
         GIT_TERMINAL_PROMPT: "0"
+      register: vim_plugin_install
       changed_when: false
+      failed_when: vim_plugin_install.rc not in [0, 1]
       when: install_vim_plugins
 
     - name: Set zsh as default shell
