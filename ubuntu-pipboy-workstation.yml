@@ -16,7 +16,7 @@
     oh_my_zsh_dir: "{{ setup_home }}/.oh-my-zsh"
     powerlevel10k_dir: "{{ oh_my_zsh_dir }}/custom/themes/powerlevel10k"
     vim_vundle_dir: "{{ setup_home }}/.vim/bundle/Vundle.vim"
-    apt_install_packages: "{{ packages.common + packages.ubuntu + (packages.docker_ubuntu if install_docker else []) }}"
+    apt_install_packages: "{{ packages.common + packages.ubuntu + (packages.docker if install_docker else []) }}"
 
   pre_tasks:
     - name: Ensure this is Ubuntu
@@ -26,6 +26,32 @@
         fail_msg: "This playbook is intended for Ubuntu."
 
   tasks:
+    - name: Create the APT keyrings directory
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+      when: install_docker
+
+    - name: Add the Docker CE signing key
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: "0644"
+      when: install_docker
+
+    - name: Add the Docker CE repository
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/docker.sources
+        mode: "0644"
+        content: |
+          Types: deb
+          URIs: https://download.docker.com/linux/ubuntu
+          Suites: {{ ansible_facts['distribution_release'] }}
+          Components: stable
+          Signed-By: /etc/apt/keyrings/docker.asc
+      when: install_docker
+
     - name: Upgrade Ubuntu packages
       ansible.builtin.apt:
         update_cache: true

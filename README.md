@@ -124,18 +124,25 @@ packages:
     - clamav-freshclam
 ```
 
-Docker packages are distro-specific and controlled by `install_docker`:
+Docker is installed as Docker CE from Docker's own repository on both distros,
+controlled by `install_docker`. The playbooks add the repository
+(`/etc/yum.repos.d/docker-ce.repo` on Fedora, `/etc/apt/sources.list.d/docker.sources`
+with its signing key on Ubuntu) and then install:
 
 ```yaml
 install_docker: true
 packages:
-  docker_fedora:
-    - docker-compose
-    - moby-engine
-  docker_ubuntu:
-    - docker-compose-v2
-    - docker.io
+  docker:
+    - docker-ce
+    - docker-ce-cli
+    - containerd.io
+    - docker-buildx-plugin
+    - docker-compose-plugin
 ```
+
+Docker CE conflicts with the distro builds (`moby-engine`/`docker-compose` on
+Fedora, `docker.io`/`docker-compose-v2` on Ubuntu). Remove those first on a
+machine that already has them.
 
 Use `flatpak_packages` for Flathub app IDs:
 

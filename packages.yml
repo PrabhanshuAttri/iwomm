@@ -34,12 +34,13 @@ packages:
     - gnome-shell-extension-manager
     - python3-venv
     - ufw
-  docker_fedora:
-    - docker-compose
-    - moby-engine
-  docker_ubuntu:
-    - docker-compose-v2
-    - docker.io
+  # Docker CE from Docker's own repo, which the playbooks add.
+  docker:
+    - docker-ce
+    - docker-ce-cli
+    - containerd.io
+    - docker-buildx-plugin
+    - docker-compose-plugin
 
 flatpak_packages:
   - md.obsidian.Obsidian
