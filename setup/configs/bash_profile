@@ -61,3 +61,6 @@ function pull() {
   echo "Pulling $branch from $remote"
   git pull "$remote" "$branch"
 }
+
+export EDITOR=/usr/bin/vim
+export VISUAL=/usr/bin/vim

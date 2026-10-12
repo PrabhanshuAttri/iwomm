@@ -46,6 +46,7 @@ flatpak_packages:
 
 copy_fonts: true
 copy_shell_configs: true
+install_tmux_plugins: true
 install_vim_plugins: true
 set_vim_as_default_editor: true
 install_docker: true
@@ -60,6 +61,30 @@ config_files:
     dest: .tmux.conf
   - src: vimrc
     dest: .vimrc
+copy_ai_configs: true
+# setup/ai/ is copied into the user home. A top-level folder named in
+# ai_tool_dirs goes to that tool's directory (setup/ai/claude/ -> ~/.claude/);
+# everything else goes to ~/.ai/. Files under bin/ or hooks/ are made executable.
+ai_config_dir: .ai
+ai_tool_dirs:
+  claude: .claude
+# Shared folders created in ~/.ai/ so tool links always have a target.
+ai_shared_dirs:
+  - agents
+  - skills
+  - hooks
+link_ai_configs: true
+# Symlinks from a tool's home into ~/.ai/. src is relative to ~/.ai/, dest to
+# the user home. An existing file or folder at dest is moved to a backup first.
+ai_tool_links:
+  - src: AGENTS.md
+    dest: .claude/CLAUDE.md
+  - src: agents
+    dest: .claude/agents
+  - src: skills
+    dest: .claude/skills
+  - src: hooks
+    dest: .claude/hooks
 install_oh_my_zsh: true
 install_powerlevel10k: true
 set_zsh_as_default_shell: true
@@ -67,4 +92,3 @@ configure_git: true
 update_flatpak: true
 package_autoremove: true
 package_clean: true
-zsh_startup_command: fortune | cowsay -f tux | lolcat -f

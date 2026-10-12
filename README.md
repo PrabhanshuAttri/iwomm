@@ -22,6 +22,7 @@ packages.yml      Shared package groups and setup toggles
 provision.sh      Bootstrap helper for fresh systems
 setup/configs/    Shell config files copied into the user home
 setup/fonts/      Fonts installed into ~/.local/share/fonts
+setup/ai/         AI configs copied into ~/.ai and ~/.claude
 ```
 
 ## Install Ansible
@@ -148,6 +149,7 @@ Useful toggles:
 ```yaml
 copy_fonts: true
 copy_shell_configs: true
+install_tmux_plugins: true
 install_vim_plugins: true
 set_vim_as_default_editor: true
 install_docker: true
@@ -163,7 +165,6 @@ configure_git: true
 update_flatpak: true
 package_autoremove: true
 package_clean: true
-zsh_startup_command: fortune | cowsay -f tux | lolcat -f
 ```
 
 Set `set_zsh_as_default_shell` to `false` if you do not want Ansible to change your login shell.
@@ -171,9 +172,17 @@ Set `set_zsh_as_default_shell` to `false` if you do not want Ansible to change y
 When `install_vim_plugins` is enabled, the playbooks install Vundle and then
 install every plugin declared in the deployed `~/.vimrc`.
 
-When `set_vim_as_default_editor` is enabled, login shells use Vim through the
-`EDITOR` and `VISUAL` environment variables. Ubuntu's system `editor`
-alternative is also switched from Nano to Vim.
+When `install_tmux_plugins` is enabled, the playbooks install the tmux plugin
+manager (TPM) into `~/.tmux/plugins/tpm` and then every plugin declared in the
+deployed `~/.tmux.conf`.
+
+Vim is set as the editor through `EDITOR` and `VISUAL` in
+`setup/configs/bash_profile`, which `zshrc` sources. The zsh greeting
+(`fortune | cowsay -f tux | lolcat -f`) is the last line of
+`setup/configs/zshrc`. Edit those files to change either; the playbook copies
+them unchanged, so re-runs leave them alone. On Ubuntu,
+`set_vim_as_default_editor` also switches the system `editor` alternative from
+Nano to Vim.
 
 When Docker is installed, its service is enabled and the workstation user is
 added to the `docker` group. Log out and back in, or run `newgrp docker`, before
@@ -190,6 +199,43 @@ setup/configs/bash_profile -> ~/.bash_profile
 setup/configs/tmux.conf   -> ~/.tmux.conf
 setup/configs/vimrc       -> ~/.vimrc
 ```
+
+AI tool configs are copied the same way, with backups. Everything under
+`setup/ai/` is copied into the home directory. A top-level folder listed in
+`ai_tool_dirs` in `packages.yml` goes to that tool's directory; everything else
+goes to `~/.ai/`. Files under `bin/` or `hooks/` are made executable.
+
+```text
+setup/ai/AGENTS.md               -> ~/.ai/AGENTS.md
+setup/ai/hooks/guard.py          -> ~/.ai/hooks/guard.py
+setup/ai/hooks/ensure_tmp.py     -> ~/.ai/hooks/ensure_tmp.py
+setup/ai/claude/settings.json    -> ~/.claude/settings.json
+```
+
+To add a file, put it in the matching folder under `setup/ai/`. To support
+another tool, add its folder and map it in `ai_tool_dirs`
+(for example `codex: .codex`).
+
+Each tool then reads the shared files through symlinks into `~/.ai/`, listed in
+`ai_tool_links` in `packages.yml`. The folders in `ai_shared_dirs` are created
+first so every link has a target. An existing file or folder at a link's
+location is moved to a timestamped `.ansible-backup-*` copy.
+
+```text
+~/.claude/CLAUDE.md -> ~/.ai/AGENTS.md
+~/.claude/agents    -> ~/.ai/agents
+~/.claude/skills    -> ~/.ai/skills
+~/.claude/hooks     -> ~/.ai/hooks
+```
+
+Claude Code plugins are declared in `setup/ai/claude/settings.json`: the
+marketplace under `extraKnownMarketplaces` and the plugin under
+`enabledPlugins`. The playbook only copies that file; Claude Code installs the
+plugins itself and keeps them updated. This currently declares
+[Superpowers](https://github.com/obra/superpowers).
+
+Never add credential files such as `~/.claude/.credentials.json` or
+`~/.claude.json`.
 
 Fonts from `setup/fonts/` are copied into:
 
